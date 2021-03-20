@@ -60,14 +60,19 @@ defmodule Absinthe.Subscription.Local do
 
         {:ok, %{result: data}, _} = Absinthe.Pipeline.run(doc.source, pipeline)
 
-        Logger.debug("""
-        Absinthe Subscription Publication
-        Field Topic: #{inspect(key_strategy)}
-        Subscription id: #{inspect(topic)}
-        Data: #{inspect(data)}
-        """)
+        # Special case to prevent publishing subscription to the client:
+        # When the errors array only contains one error with the message "__ignore__"
+        unless data[:errors] && length(data[:errors]) === 1 &&
+                 List.first(data[:errors])[:message] === "__ignore__" do
+          Logger.debug("""
+          Absinthe Subscription Publication
+          Field Topic: #{inspect(key_strategy)}
+          Subscription id: #{inspect(topic)}
+          Data: #{inspect(data)}
+          """)
 
-        :ok = pubsub.publish_subscription(topic, data)
+          :ok = pubsub.publish_subscription(topic, data)
+        end
       rescue
         e ->
           BatchResolver.pipeline_error(e, __STACKTRACE__)
